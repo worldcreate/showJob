@@ -1,5 +1,15 @@
-
+#include "JobTable.h"
+#include <stdio.h>
 #include "windows.h"
+
+#define WINDOW_WIDTH 640
+#define WINDOW_HEIGHT 480
+
+static JobTable jt;
+
+inline blankRead(){
+	while(getchar() != '\n');
+}
 
 // 関数のプロトタイプ宣言
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
@@ -33,8 +43,8 @@ int APIENTRY WinMain(HINSTANCE hInstance,HINSTANCE hPrevInstance,LPSTR lpCmdLine
 		WS_OVERLAPPEDWINDOW,	// ウインドウのスタイル
 		CW_USEDEFAULT,	// 水平位置
 		CW_USEDEFAULT,	// 垂直位置
-		CW_USEDEFAULT,	// 幅
-		CW_USEDEFAULT,	// 高さ
+		WINDOW_WIDTH,	// 幅
+		WINDOW_HEIGHT,	// 高さ
 		NULL,	// 親ウインドウ
 		NULL,	// ウインドウメニュー
 		hInstance,	// インスタンスハンドル
@@ -59,10 +69,60 @@ int APIENTRY WinMain(HINSTANCE hInstance,HINSTANCE hPrevInstance,LPSTR lpCmdLine
 // ウインドウプロシージャ
 LRESULT CALLBACK WndProc(HWND hWnd,UINT message,WPARAM wParam,LPARAM lParam){
 // メッセージの種類に応じて処理を分岐します。
+	static HDC hdcMem;
+	static HBITMAP hBitmap;
+	static int BufferWidth;
+	static int BufferHeight;
+	static RECT rc;
+	static int srcX=0;
+	static int srcY=0;
 	switch (message) {
+		case WM_CREATE:{
+			int m,j;
+			char delm;
+			scanf("%d%c%d",&j,&delm,&m);
+			blankRead();
+			for(int i=0;i<m;i++){
+				char temp[256];
+				gets(temp);
+				jt.addMachine(temp);
+			}
+			HDC hdc;
+			hdc=GetDC(hWnd);
+			hBitmap=CreateCompatibleBitmap(hdc,BufferWidth=jt.getMaxTime()+30,BufferHeight=JobTable::jobHeight*m+30);
+			hdcMem=CreateCompatibleDC(NULL);
+			SelectObject(hdcMem,hBitmap);
+			PatBlt(hdcMem,0,0,BufferWidth,BufferHeight,WHITENESS);
+			jt.draw(hdcMem);
+			GetClientRect(hWnd,&rc);
+		}
+		return 0;
+		case WM_PAINT:{
+			PAINTSTRUCT ps;
+			HDC hdc=BeginPaint(hWnd,&ps);
+			BitBlt(hdc,0,0,rc.right,rc.bottom,hdcMem,srcX,srcY,SRCCOPY);
+			EndPaint(hWnd,&ps);
+		}
+		return 0;
+		case WM_KEYDOWN:
+			if(GetKeyState(VK_LEFT)&0x80){
+				srcX-=10;
+			}else if(GetKeyState(VK_RIGHT)&0x80){
+				srcX+=10;
+			}else if(GetKeyState(VK_UP)&0x80){
+				srcY-=10;
+			}else if(GetKeyState(VK_DOWN)&0x80){
+				srcY+=10;
+			}
+			if(srcX<0)
+				srcX=0;
+			if(srcY<0)
+				srcY=0;
+			InvalidateRect(hWnd,NULL,TRUE);
+		return 0;
 		case WM_DESTROY:
-		// ウインドウが破棄されたときの処理
-		PostQuitMessage(0);
+			// ウインドウが破棄されたときの処理
+			PostQuitMessage(0);
 		return 0;
 		default:
 		// デフォルトの処理
